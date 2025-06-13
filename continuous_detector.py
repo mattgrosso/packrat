@@ -44,7 +44,11 @@ class ContinuousDetector:
         self.CHANNELS = 1
         self.RATE = 16000
         self.WAKE_WINDOW = 2  # Check for wake word in 2-second chunks
-        self.COMMAND_DURATION = 6  # After wake word, record 6 more seconds
+        self.MAX_COMMAND_DURATION = 10  # Maximum recording time
+        self.SILENCE_THRESHOLD = 834  # RMS threshold for silence detection (tuned based on your environment)
+        self.SILENCE_DURATION = 1.5  # Seconds of silence to end recording
+        self.FIXED_RECORDING_MODE = False  # Use silence detection with tuned threshold
+        self.FIXED_DURATION = 4  # Fixed recording duration in seconds
         
         self.audio = pyaudio.PyAudio()
         
@@ -139,6 +143,69 @@ class ContinuousDetector:
         except:
             return False
     
+    def calculate_audio_level(self, audio_chunk: bytes) -> float:
+        """Calculate RMS level of audio chunk"""
+        try:
+            audio_array = np.frombuffer(audio_chunk, dtype=np.int16)
+            rms = np.sqrt(np.mean(audio_array.astype(np.float64) ** 2))
+            return rms
+        except:
+            return 0.0
+    
+    def record_command_with_silence_detection(self, initial_frames: list) -> bytes:
+        """Record command until silence is detected or max duration reached"""
+        try:
+            stream = self.audio.stream  # Use existing stream
+            command_frames = initial_frames.copy()
+            
+            silence_start_time = None
+            total_duration = len(initial_frames) * self.CHUNK / self.RATE
+            chunk_duration = self.CHUNK / self.RATE
+            
+            print("🔴 Recording command... (stop talking when done)")
+            
+            while total_duration < self.MAX_COMMAND_DURATION:
+                if not self.is_listening:
+                    break
+                
+                # Read audio chunk
+                data = stream.read(self.CHUNK, exception_on_overflow=False)
+                command_frames.append(data)
+                total_duration += chunk_duration
+                
+                # Calculate audio level
+                audio_level = self.calculate_audio_level(data)
+                
+                # Check for silence
+                if audio_level < self.SILENCE_THRESHOLD:
+                    if silence_start_time is None:
+                        silence_start_time = total_duration
+                    else:
+                        silence_duration = total_duration - silence_start_time
+                        if silence_duration >= self.SILENCE_DURATION:
+                            print(f"✅ Silence detected after {total_duration:.1f}s - ending recording")
+                            break
+                else:
+                    # Reset silence timer when speech detected
+                    silence_start_time = None
+                
+                # Show progress every 0.5 seconds
+                if int(total_duration * 2) % 1 == 0:  # Every 0.5s
+                    if silence_start_time:
+                        silence_so_far = total_duration - silence_start_time
+                        print(f"🔴 Recording... {total_duration:.1f}s (silence: {silence_so_far:.1f}s)")
+                    else:
+                        print(f"🔴 Recording... {total_duration:.1f}s (level: {audio_level:.0f})")
+            
+            if total_duration >= self.MAX_COMMAND_DURATION:
+                print(f"⏰ Maximum duration ({self.MAX_COMMAND_DURATION}s) reached")
+            
+            return b''.join(command_frames)
+            
+        except Exception as e:
+            print(f"❌ Error during command recording: {e}")
+            return b''.join(command_frames)
+    
     def start_listening(self):
         """Start continuous detection"""
         if self.is_listening:
@@ -147,17 +214,19 @@ class ContinuousDetector:
         self.is_listening = True
         
         try:
-            stream = self.audio.open(
+            self.audio.stream = self.audio.open(
                 format=self.FORMAT,
                 channels=self.CHANNELS,
                 rate=self.RATE,
                 input=True,
                 frames_per_buffer=self.CHUNK
             )
+            stream = self.audio.stream
             
-            print(f"🎧 Listening for '{self.keyword}' + command...")
-            print("💡 Say: 'Computer, store hammer in toolbox drawer three'")
-            print("💡 Or: 'Computer, where is the hammer?'")
+            print(f"🎧 Listening for '{self.keyword}' + command with silence detection...")
+            print("💡 Say: 'Computer, store hammer in toolbox drawer three' then pause")
+            print("💡 Or: 'Computer, where is the hammer?' then pause")
+            print("🔇 Recording stops automatically after 1.5s of silence")
             
             while self.is_listening:
                 # Check cooldown
@@ -188,30 +257,12 @@ class ContinuousDetector:
                 # Fast local check for wake word
                 print("🔍 Checking for wake word...")
                 if self.check_for_wake_word_local(wake_audio):
-                    print(f"🎯 Wake word detected! Recording full command...")
+                    print(f"🎯 Wake word detected! Recording command with silence detection...")
                     
-                    # Record additional audio for the command
-                    command_frames = wake_frames.copy()  # Include the wake word audio
-                    command_frames_needed = int(self.RATE / self.CHUNK * self.COMMAND_DURATION)
-                    
-                    # Visual feedback
-                    print("🔴 Recording command... (speak now)")
-                    
-                    for i in range(command_frames_needed):
-                        if not self.is_listening:
-                            break
-                        data = stream.read(self.CHUNK, exception_on_overflow=False)
-                        command_frames.append(data)
-                        
-                        # Show progress every second
-                        if i % (self.RATE // self.CHUNK) == 0:
-                            seconds_left = self.COMMAND_DURATION - (i // (self.RATE // self.CHUNK))
-                            print(f"🔴 Recording... {seconds_left}s left")
+                    # Record command with silence detection
+                    full_audio = self.record_command_with_silence_detection(wake_frames)
                     
                     print("✅ Recording complete, transcribing...")
-                    
-                    # Transcribe the full audio (wake word + command)
-                    full_audio = b''.join(command_frames)
                     full_transcript = self.transcribe_full_command(full_audio)
                     
                     if full_transcript:
@@ -259,9 +310,10 @@ def test_continuous_detector():
         print("(This would now be processed by the smart parser)")
     
     try:
-        print("🧪 Testing Continuous Detector")
-        print("Say: 'Computer, store hammer in toolbox'")
-        print("Or: 'Computer, where is the hammer?'")
+        print("🧪 Testing Continuous Detector with Silence Detection")
+        print("Say: 'Computer, store hammer in toolbox' then stop talking")
+        print("Or: 'Computer, where is the hammer?' then stop talking")
+        print("🔇 Recording will stop automatically after 1.5s of silence")
         print("-" * 40)
         
         detector = ContinuousDetector(keyword="computer", callback=on_command)
