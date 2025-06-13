@@ -5,7 +5,7 @@ import time
 import threading
 from typing import Optional
 
-from local_keyword_detector import LocalKeywordDetector
+from continuous_detector import ContinuousDetector
 from speech_processor import SpeechProcessor
 from smart_command_parser import SmartCommandParser
 from tts import WorkshopTTS
@@ -36,10 +36,10 @@ class WorkshopAssistant:
             self.tts = WorkshopTTS(voice=voice, rate=180)
             self.speech_processor = SpeechProcessor(api_key=self.api_key)
             self.command_parser = SmartCommandParser(api_key=self.api_key)
-            self.wake_detector = LocalKeywordDetector(
+            self.wake_detector = ContinuousDetector(
                 keyword=wake_word,
-                callback=self.on_wake_word_detected,
-                model_size="tiny"  # Fast local model for wake words
+                callback=self.on_command_received,
+                api_key=self.api_key
             )
             
             print("✅ All components initialized successfully!")
@@ -48,35 +48,25 @@ class WorkshopAssistant:
             print(f"❌ Error initializing components: {e}")
             raise
     
-    def on_wake_word_detected(self):
-        """Callback function when wake word is detected"""
+    def on_command_received(self, command_text: str):
+        """Callback function when full command is received"""
         if self.is_processing_command:
-            print("⚠️  Already processing a command, ignoring wake word")
+            print("⚠️  Already processing a command, ignoring new command")
             return
         
         self.is_processing_command = True
         
-        # Run command processing in a separate thread to avoid blocking wake word detection
-        thread = threading.Thread(target=self.process_command)
+        # Run command processing in a separate thread
+        thread = threading.Thread(target=self.process_command, args=(command_text,))
         thread.daemon = True
         thread.start()
     
-    def process_command(self):
-        """Process a voice command after wake word detection"""
+    def process_command(self, command_text: str):
+        """Process a voice command"""
         try:
-            # Acknowledge wake word
-            print("🎯 Processing voice command...")
-            self.tts.acknowledge_wake_word()
+            print(f"🎯 Processing command: '{command_text}'")
             
-            # Record and transcribe command
-            command_text = self.speech_processor.record_and_transcribe(duration=4)
-            
-            if not command_text:
-                self.tts.respond("no_speech")
-                return
-            
-            # Parse and execute command
-            print(f"💬 Command: '{command_text}'")
+            # Parse and execute command directly (no additional recording needed)
             response = self.command_parser.parse_command(command_text)
             
             if response:
@@ -103,12 +93,12 @@ class WorkshopAssistant:
         print("\n🚀 Workshop Assistant Started!")
         print("=" * 40)
         print(f"🎧 Wake word: '{self.wake_word}'")
-        print("🗣️  Say the wake phrase, then give a command")
+        print("🗣️  Say the wake word followed by your command in one go")
         print("⏹️  Press Ctrl+C to stop")
         print("\n📝 Example commands:")
-        print("  - 'Store hammer in toolbox drawer three'")
-        print("  - 'Where is the hammer?'")
-        print("  - 'List all tools'")
+        print("  - 'Computer, store hammer in toolbox drawer three'")
+        print("  - 'Computer, where is the hammer?'")
+        print("  - 'Computer, list all tools'")
         print("-" * 40)
         
         try:
