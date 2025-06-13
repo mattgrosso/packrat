@@ -6,7 +6,6 @@ import threading
 from typing import Optional
 
 from continuous_detector import ContinuousDetector
-from speech_processor import SpeechProcessor
 from smart_command_parser import SmartCommandParser
 from openai_tts import WorkshopOpenAITTS
 
@@ -34,7 +33,6 @@ class WorkshopAssistant:
         # Initialize components
         try:
             self.tts = WorkshopOpenAITTS(voice=voice, api_key=self.api_key)
-            self.speech_processor = SpeechProcessor(api_key=self.api_key)
             self.command_parser = SmartCommandParser(api_key=self.api_key)
             self.wake_detector = ContinuousDetector(
                 keyword=wake_word,
@@ -122,9 +120,6 @@ class WorkshopAssistant:
         if hasattr(self, 'wake_detector'):
             self.wake_detector.cleanup()
         
-        if hasattr(self, 'speech_processor'):
-            self.speech_processor.cleanup()
-        
         if hasattr(self, 'tts'):
             self.tts.stop_speaking()
         
@@ -138,7 +133,6 @@ class WorkshopAssistant:
             "wake_word": self.wake_word,
             "components_initialized": all([
                 hasattr(self, 'tts'),
-                hasattr(self, 'speech_processor'),
                 hasattr(self, 'command_parser'),
                 hasattr(self, 'wake_detector')
             ])
