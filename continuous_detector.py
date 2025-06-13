@@ -84,11 +84,14 @@ class ContinuousDetector:
                 audio_array,
                 language="en",
                 fp16=False,
-                no_speech_threshold=0.7  # More aggressive
+                no_speech_threshold=0.3,  # More sensitive to speech
+                condition_on_previous_text=False  # Don't use context
             )
             
             text = result["text"].strip().lower()
-            return self.keyword in text or "compute" in text
+            # Check for various wake word variants
+            wake_variants = [self.keyword, "compute", "comput", "computer"]
+            return any(variant in text for variant in wake_variants)
             
         except Exception:
             return False

@@ -8,17 +8,17 @@ from typing import Optional
 from continuous_detector import ContinuousDetector
 from speech_processor import SpeechProcessor
 from smart_command_parser import SmartCommandParser
-from tts import WorkshopTTS
+from openai_tts import WorkshopOpenAITTS
 
 class WorkshopAssistant:
-    def __init__(self, api_key: str = None, wake_word: str = "computer", voice: str = "default"):
+    def __init__(self, api_key: str = None, wake_word: str = "computer", voice: str = "alloy"):
         """
         Initialize the workshop voice assistant
         
         Args:
             api_key: OpenAI API key (or uses OPENAI_API_KEY env var)
             wake_word: Wake word for activation (e.g., "computer")
-            voice: TTS voice to use
+            voice: OpenAI TTS voice (alloy, echo, fable, onyx, nova, shimmer)
         """
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
@@ -33,7 +33,7 @@ class WorkshopAssistant:
         
         # Initialize components
         try:
-            self.tts = WorkshopTTS(voice=voice, rate=180)
+            self.tts = WorkshopOpenAITTS(voice=voice, api_key=self.api_key)
             self.speech_processor = SpeechProcessor(api_key=self.api_key)
             self.command_parser = SmartCommandParser(api_key=self.api_key)
             self.wake_detector = ContinuousDetector(
@@ -161,7 +161,7 @@ def main():
     
     # Configuration
     wake_word = "computer"  # Simple keyword detection
-    voice = "default"       # macOS system voice
+    voice = "nova"          # OpenAI female voice
     
     try:
         # Create and start assistant
