@@ -88,9 +88,20 @@ class OpenAITTS:
                 temp_file.write(response.content)
                 temp_filename = temp_file.name
             
-            # Play audio using afplay (macOS)
+            # Play audio (cross-platform)
             try:
-                subprocess.run(["afplay", temp_filename], check=True)
+                # Try different audio players based on platform
+                if os.name == 'posix':  # Unix/Linux/macOS
+                    if subprocess.run(["which", "afplay"], capture_output=True).returncode == 0:
+                        subprocess.run(["afplay", temp_filename], check=True)
+                    elif subprocess.run(["which", "mpg123"], capture_output=True).returncode == 0:
+                        subprocess.run(["mpg123", temp_filename], check=True)
+                    elif subprocess.run(["which", "paplay"], capture_output=True).returncode == 0:
+                        subprocess.run(["paplay", temp_filename], check=True)
+                    else:
+                        raise FileNotFoundError("No audio player found (try: sudo apt install mpg123)")
+                else:  # Windows
+                    subprocess.run(["start", temp_filename], shell=True, check=True)
             finally:
                 # Clean up temporary file
                 os.unlink(temp_filename)
