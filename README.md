@@ -162,6 +162,25 @@ Then update your config:
 
 ## Development
 
+### Code Quality
+
+This project uses standard Python linting and formatting tools:
+
+- **Linting**: `make lint` - Run flake8 to check code style
+- **Formatting**: `make format` - Run black to auto-format code  
+- **Lint & Fix**: `make lint-fix` - Format code then run linter
+- **Install dev deps**: `make dev-install` - Install with development dependencies
+
+Configuration is stored in `pyproject.toml`:
+- Line length: 120 characters
+- Target Python: 3.8+
+- Flake8 ignores: f-string placeholder warnings
+
+### Other Development Commands
+
 - **Test configurations** without affecting defaults
 - **Share setups** by sharing `config.local.json` files
 - **Add new options** to `config.defaults.json` with sensible defaults
+- **Run tests**: `make test` - Run pytest test suite
+- **Clean cache**: `make clean` - Remove Python cache files
+- **Help**: `make help` - Show all available commands
