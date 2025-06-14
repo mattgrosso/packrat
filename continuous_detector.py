@@ -74,7 +74,9 @@ class ContinuousDetector:
         self.last_detection_time = 0
         self.detection_cooldown = 3
 
-        print(f"✅ Continuous detector initialized for '{self.keyword}' (threshold: {self.SILENCE_THRESHOLD})")
+        print(
+            f"✅ Continuous detector initialized for '{self.keyword}' (threshold: {self.SILENCE_THRESHOLD})"
+        )
 
     def load_config(self) -> dict:
         """Load configuration from defaults + local overrides"""
@@ -83,7 +85,11 @@ class ContinuousDetector:
             """Deep merge override into base dictionary"""
             result = base.copy()
             for key, value in override.items():
-                if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                if (
+                    key in result
+                    and isinstance(result[key], dict)
+                    and isinstance(value, dict)
+                ):
                     result[key] = deep_merge(result[key], value)
                 else:
                     result[key] = value
@@ -99,7 +105,9 @@ class ContinuousDetector:
             with open("config.local.json", "r") as f:
                 local_config = json.load(f)
                 config = deep_merge(config, local_config)
-                print(f"✅ Applied local overrides (silence threshold: {config['audio']['silence_threshold']})")
+                print(
+                    f"✅ Applied local overrides (silence threshold: {config['audio']['silence_threshold']})"
+                )
         except FileNotFoundError:
             print("ℹ️ No config.local.json found, using defaults only")
         except json.JSONDecodeError as e:
@@ -123,7 +131,9 @@ class ContinuousDetector:
         wav_buffer.seek(0)
         return wav_buffer.getvalue()
 
-    def check_for_wake_word_local(self, audio_data: bytes, show_transcription: bool = True) -> bool:
+    def check_for_wake_word_local(
+        self, audio_data: bytes, show_transcription: bool = True
+    ) -> bool:
         """Quick local check for wake word"""
         try:
             audio_array = self.preprocess_audio(audio_data)
@@ -152,7 +162,9 @@ class ContinuousDetector:
         except Exception:
             return False
 
-    def check_for_stop_command(self, audio_data: bytes, show_transcription: bool = True) -> bool:
+    def check_for_stop_command(
+        self, audio_data: bytes, show_transcription: bool = True
+    ) -> bool:
         """Quick local check for stop command"""
         try:
             audio_array = self.preprocess_audio(audio_data)
@@ -279,7 +291,9 @@ class ContinuousDetector:
                     else:
                         silence_duration = total_duration - silence_start_time
                         if silence_duration >= self.SILENCE_DURATION:
-                            print(f"✅ Silence detected after {total_duration:.1f}s - ending recording")
+                            print(
+                                f"✅ Silence detected after {total_duration:.1f}s - ending recording"
+                            )
                             break
                 else:
                     # Reset silence timer when speech detected
@@ -289,9 +303,13 @@ class ContinuousDetector:
                 if int(total_duration * 2) % 1 == 0:  # Every 0.5s
                     if silence_start_time:
                         silence_so_far = total_duration - silence_start_time
-                        print(f"🔴 Recording... {total_duration:.1f}s (silence: {silence_so_far:.1f}s)")
+                        print(
+                            f"🔴 Recording... {total_duration:.1f}s (silence: {silence_so_far:.1f}s)"
+                        )
                     else:
-                        print(f"🔴 Recording... {total_duration:.1f}s (level: {audio_level:.0f})")
+                        print(
+                            f"🔴 Recording... {total_duration:.1f}s (level: {audio_level:.0f})"
+                        )
 
             if total_duration >= self.MAX_COMMAND_DURATION:
                 print(f"⏰ Maximum duration ({self.MAX_COMMAND_DURATION}s) reached")
@@ -319,7 +337,9 @@ class ContinuousDetector:
             )
             stream = self.audio.stream
 
-            print(f"🎧 Listening for '{self.keyword}' + command with silence detection...")
+            print(
+                f"🎧 Listening for '{self.keyword}' + command with silence detection..."
+            )
             print("💡 Say: 'Computer, store hammer in toolbox drawer three' then pause")
             print("💡 Or: 'Computer, where is the hammer?' then pause")
             print("🔇 Recording stops automatically after 1.5s of silence")

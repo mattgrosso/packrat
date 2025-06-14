@@ -77,8 +77,8 @@ Uses a **two-file configuration pattern**:
 
 ### Linting and Formatting
 This project uses standard Python tooling configured in `pyproject.toml`:
-- **Black** for code formatting (120 character line length)
-- **Flake8** for linting (ignores f-string placeholder warnings)
+- **Black** for code formatting (no line length restrictions)
+- **Flake8** for linting (ignores f-string placeholder warnings and line length)
 - **Make commands** for easy execution (`make lint`, `make format`, `make lint-fix`)
 
 ### Before Committing Code
@@ -88,9 +88,9 @@ Always run `make lint-fix` to ensure code quality:
 3. All code should pass both checks
 
 ### Configuration
-- Line length: 120 characters (balance between readability and screen width)
+- Line length: No restrictions (long lines are allowed)
 - Target Python: 3.8+ for broad compatibility
-- Flake8 ignores: F541 (f-string missing placeholders - stylistic preference)
+- Flake8 ignores: F541 (f-string missing placeholders), E501 (line too long)
 
 ## Working Practices
 - Read PROJECT_STATUS.md at the beginning of sessions and update it from time to time

@@ -11,7 +11,9 @@ from openai_tts import WorkshopOpenAITTS
 
 
 class WorkshopAssistant:
-    def __init__(self, api_key: str = None, wake_word: str = "computer", voice: str = "alloy"):
+    def __init__(
+        self, api_key: str = None, wake_word: str = "computer", voice: str = "alloy"
+    ):
         """
         Initialize the workshop voice assistant
 
@@ -22,7 +24,9 @@ class WorkshopAssistant:
         """
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
-            raise ValueError("OpenAI API key required. Set OPENAI_API_KEY env var or pass api_key parameter.")
+            raise ValueError(
+                "OpenAI API key required. Set OPENAI_API_KEY env var or pass api_key parameter."
+            )
 
         self.wake_word = wake_word
         self.is_running = False
@@ -34,7 +38,9 @@ class WorkshopAssistant:
         # Initialize components
         try:
             self.tts = WorkshopOpenAITTS(voice=voice, api_key=self.api_key)
-            self.command_parser = SmartCommandParser(api_key=self.api_key, wake_word=wake_word)
+            self.command_parser = SmartCommandParser(
+                api_key=self.api_key, wake_word=wake_word
+            )
             self.wake_detector = ContinuousDetector(
                 keyword=wake_word,
                 callback=self.on_command_received,
@@ -123,6 +129,8 @@ class WorkshopAssistant:
         print(f"  - '{self.wake_word.title()}, store hammer in toolbox drawer three'")
         print(f"  - '{self.wake_word.title()}, where is the hammer?'")
         print(f"  - '{self.wake_word.title()}, list all tools'")
+        print(f"  - '{self.wake_word.title()}, remember I prefer brief responses' (NEW!)")
+        print("\n🧠 Memory Feature: Train the assistant to remember your preferences!")
         print("-" * 40)
 
         try:
@@ -187,7 +195,11 @@ def main():
         """Deep merge override into base dictionary"""
         result = base.copy()
         for key, value in override.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 result[key] = deep_merge(result[key], value)
             else:
                 result[key] = value

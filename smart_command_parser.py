@@ -9,7 +9,9 @@ from database import WorkshopDatabase
 
 
 class SmartCommandParser:
-    def __init__(self, api_key: str = None, db_path: str = "workshop.db", wake_word: str = None):
+    def __init__(
+        self, api_key: str = None, db_path: str = "workshop.db", wake_word: str = None
+    ):
         """
         Smart command parser that gives full database context to GPT-4
 
@@ -20,11 +22,14 @@ class SmartCommandParser:
         if not api_key:
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
-                raise ValueError("OpenAI API key required. Set OPENAI_API_KEY env var or pass api_key parameter.")
+                raise ValueError(
+                    "OpenAI API key required. Set OPENAI_API_KEY env var or pass api_key parameter."
+                )
 
         self.client = OpenAI(api_key=api_key)
         self.db = WorkshopDatabase(db_path)
         self.wake_word = wake_word or "computer"
+        self.memory_file = "MEMORY.md"
 
         # Define available functions for the LLM
         self.functions = [
@@ -91,6 +96,27 @@ class SmartCommandParser:
                     },
                 },
             },
+            {
+                "type": "function",
+                "function": {
+                    "name": "add_memory",
+                    "description": "Add a persistent instruction or preference to the assistant's memory",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "instruction": {
+                                "type": "string",
+                                "description": "The instruction or preference to remember (e.g., 'When user asks for counts, only give numbers not lists')",
+                            },
+                            "category": {
+                                "type": "string",
+                                "description": "Optional category for the instruction (e.g., 'response_style', 'preferences', 'procedures')",
+                            },
+                        },
+                        "required": ["instruction"],
+                    },
+                },
+            },
         ]
 
         print("✅ Smart command parser initialized with full database context")
@@ -141,6 +167,59 @@ class SmartCommandParser:
         except Exception as e:
             return f"Error reading database: {e}"
 
+    def get_memory_context(self) -> str:
+        """Get the current memory instructions from MEMORY.md"""
+        try:
+            if not os.path.exists(self.memory_file):
+                return "No persistent instructions stored."
+
+            with open(self.memory_file, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+
+            if not content:
+                return "No persistent instructions stored."
+
+            return f"PERSISTENT INSTRUCTIONS:\n{'-' * 30}\n{content}"
+        except Exception as e:
+            return f"Error reading memory file: {e}"
+
+    def add_memory_entry(self, instruction: str, category: str = None) -> bool:
+        """Add a new instruction to MEMORY.md"""
+        try:
+            # Create MEMORY.md if it doesn't exist
+            if not os.path.exists(self.memory_file):
+                with open(self.memory_file, "w", encoding="utf-8") as f:
+                    f.write("# Assistant Memory\n\n")
+                    f.write(
+                        "This file contains persistent instructions and preferences for the workshop assistant.\n\n"
+                    )
+
+            # Read existing content
+            with open(self.memory_file, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Add timestamp and category info
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+            # Format the new entry
+            if category:
+                new_entry = (
+                    f"## {category.title()}\n- **{timestamp}**: {instruction}\n\n"
+                )
+            else:
+                new_entry = f"- **{timestamp}**: {instruction}\n\n"
+
+            # Append the new entry
+            with open(self.memory_file, "w", encoding="utf-8") as f:
+                f.write(content + new_entry)
+
+            return True
+        except Exception as e:
+            print(f"Error adding memory entry: {e}")
+            return False
+
     def execute_function(self, function_name: str, arguments: Dict) -> Dict:
         """Execute a database function and return results"""
         try:
@@ -174,6 +253,20 @@ class SmartCommandParser:
             elif function_name == "respond_with_info":
                 return {"success": True, "response": arguments["response"]}
 
+            elif function_name == "add_memory":
+                success = self.add_memory_entry(
+                    instruction=arguments["instruction"],
+                    category=arguments.get("category"),
+                )
+                return {
+                    "success": success,
+                    "message": (
+                        f"Added instruction to memory: {arguments['instruction']}"
+                        if success
+                        else "Failed to add instruction to memory"
+                    ),
+                }
+
             else:
                 return {
                     "success": False,
@@ -200,12 +293,17 @@ class SmartCommandParser:
             # Get full database context
             db_context = self.get_full_database_context()
 
+            # Get memory context
+            memory_context = self.get_memory_context()
+
             # Create enhanced system message with full context
             system_message = f"""
 You are a helpful workshop assistant. You help users store and find tools, hardware, and materials in their workshop.
 
 WAKE WORD: The user says "{self.wake_word}" to activate you, so ignore that word at the beginning of commands.
 For example, "{self.wake_word} store hammer in toolbox" means "store hammer in toolbox".
+
+{memory_context}
 
 Here is the COMPLETE current workshop inventory:
 
@@ -217,11 +315,12 @@ INSTRUCTIONS:
 - For listing items ("what do I have?", "list tools"), use the database context above
 - For questions about locations ("what's in the toolbox?"), use the database context above
 - For deleting items ("remove X", "delete X"), use delete_item function
+- For adding persistent instructions ("remember that...", "when I ask for X always do Y"), use add_memory function
 - Be conversational and helpful - you can see EVERYTHING in the workshop
 - If an item isn't found, suggest similar items that exist
 - You can answer complex queries like "what cutting tools do I have?" or "where are all my screws?"
 
-Use respond_with_info for any query that doesn't require storing/deleting items.
+Use respond_with_info for any query that doesn't require storing/deleting items or adding memory.
 
 Keep responses brief and natural since they will be spoken aloud.
 """

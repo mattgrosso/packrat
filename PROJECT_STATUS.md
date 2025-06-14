@@ -14,6 +14,7 @@ A hands-free voice assistant for organizing workshop tools and hardware. Fully c
 - **smart_command_parser.py** - GPT-4.1 powered command parsing with full database context
 - **openai_tts.py** - Cross-platform OpenAI TTS with interrupt support
 - **database.py** - SQLite database for tool storage
+- **MEMORY.md** - Persistent user instructions and preferences (NEW!)
 - **config.defaults.json** - Default configuration (committed to repo)
 - **config.local.json** - Local configuration overrides (not committed)
 - **pyproject.toml** - Modern Python packaging with dependencies
@@ -55,6 +56,8 @@ CREATE TABLE tools (
 - "[Wake word], where is the hammer?"
 - "[Wake word], what cutting tools do I have?"
 - "[Wake word], list all tools in the garage"
+- "[Wake word], remember I prefer brief responses" (NEW!)
+- "[Wake word], remember to mention safety with power tools" (NEW!)
 - "stop" / "quiet" / "cancel" (to interrupt responses)
 
 ## Dependencies

@@ -111,11 +111,21 @@ Create this file to customize settings for your specific setup. This file is ign
 
 Say your wake word followed by a command:
 
+### Inventory Management
 - **"Computer, store hammer in toolbox drawer three"**
 - **"Computer, where is the hammer?"**
 - **"Computer, list all tools"**
 - **"Computer, what's in the toolbox?"**
 
+### Persistent Memory (NEW!)
+Train the assistant to remember your preferences:
+- **"Computer, remember that when I ask for counts, only give me the number"**
+- **"Computer, remember I prefer brief responses"**
+- **"Computer, remember to always mention safety when discussing power tools"**
+
+The assistant stores these instructions in `MEMORY.md` and includes them in all future conversations, ensuring consistent behavior based on your preferences.
+
+### Interrupting Responses
 To interrupt a response, say any configured stop word:
 - **"stop"** 
 - **"quiet"**
@@ -172,9 +182,9 @@ This project uses standard Python linting and formatting tools:
 - **Install dev deps**: `make dev-install` - Install with development dependencies
 
 Configuration is stored in `pyproject.toml`:
-- Line length: 120 characters
+- Line length: No restrictions (long lines allowed)
 - Target Python: 3.8+
-- Flake8 ignores: f-string placeholder warnings
+- Flake8 ignores: f-string placeholder warnings, line length limits
 
 ### Other Development Commands
 

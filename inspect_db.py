@@ -29,7 +29,9 @@ def inspect_workshop_db(db_path="workshop.db"):
 
             # 2. Show indexes
             print("\n🗂️  INDEXES:")
-            cursor.execute("SELECT name, sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL;")
+            cursor.execute(
+                "SELECT name, sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL;"
+            )
             indexes = cursor.fetchall()
 
             if indexes:
@@ -92,7 +94,9 @@ def show_all_items():
             print(f"\n🔧 ALL WORKSHOP ITEMS ({len(items)} total):")
             print("=" * 60)
 
-            for i, (name, location, desc, category, created, updated) in enumerate(items, 1):
+            for i, (name, location, desc, category, created, updated) in enumerate(
+                items, 1
+            ):
                 print(f"\n{i}. {name.upper()}")
                 print(f"   📍 Location: {location}")
                 if desc:

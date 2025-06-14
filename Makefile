@@ -2,7 +2,7 @@
 
 # Linting and formatting
 lint:
-	flake8 --max-line-length=120 --extend-ignore=F541 .
+	flake8 --extend-ignore=F541,E501 .
 
 format:
 	black .
