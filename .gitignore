@@ -159,4 +159,4 @@ cython_debug/
 .idea/
 
 # Local configuration files (machine-specific)
-config.json
+config.local.json
