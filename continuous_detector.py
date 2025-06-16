@@ -8,6 +8,7 @@ import whisper
 import io
 import wave
 import os
+import json
 from typing import Callable, Optional
 from openai import OpenAI
 
@@ -33,19 +34,22 @@ class ContinuousDetector:
         
         self.client = OpenAI(api_key=api_key)
         
+        # Load configuration
+        self.config = self.load_config()
+        
         # Load tiny local model just for wake word detection
         print("🔄 Loading local Whisper tiny model for wake word detection...")
-        self.local_model = whisper.load_model("tiny")
+        self.local_model = whisper.load_model(self.config["wake_word"]["model"])
         print("✅ Local model loaded")
         
-        # Audio parameters
-        self.CHUNK = 1024
+        # Audio parameters from config
+        self.CHUNK = self.config["audio"]["chunk_size"]
         self.FORMAT = pyaudio.paInt16
-        self.CHANNELS = 1
-        self.RATE = 16000
+        self.CHANNELS = self.config["audio"]["channels"]
+        self.RATE = self.config["audio"]["rate"]
         self.WAKE_WINDOW = 2  # Check for wake word in 2-second chunks
         self.MAX_COMMAND_DURATION = 10  # Maximum recording time
-        self.SILENCE_THRESHOLD = 834  # RMS threshold for silence detection (tuned based on your environment)
+        self.SILENCE_THRESHOLD = self.config["audio"]["silence_threshold"]
         self.SILENCE_DURATION = 1.5  # Seconds of silence to end recording
         self.FIXED_RECORDING_MODE = False  # Use silence detection with tuned threshold
         self.FIXED_DURATION = 4  # Fixed recording duration in seconds
@@ -56,7 +60,51 @@ class ContinuousDetector:
         self.last_detection_time = 0
         self.detection_cooldown = 3
         
-        print(f"✅ Continuous detector initialized for '{keyword}'")
+        print(f"✅ Continuous detector initialized for '{keyword}' (threshold: {self.SILENCE_THRESHOLD})")
+    
+    def load_config(self) -> dict:
+        """Load configuration from config.json with fallback defaults"""
+        default_config = {
+            "audio": {
+                "silence_threshold": 834,
+                "chunk_size": 1024,
+                "format": "paInt16",
+                "channels": 1,
+                "rate": 16000
+            },
+            "wake_word": {
+                "model": "tiny",
+                "timeout": 30
+            },
+            "tts": {
+                "voice": "alloy",
+                "model": "tts-1"
+            }
+        }
+        
+        try:
+            with open("config.json", "r") as f:
+                config = json.load(f)
+                # Merge with defaults in case some keys are missing
+                for key in default_config:
+                    if key not in config:
+                        config[key] = default_config[key]
+                    else:
+                        for subkey in default_config[key]:
+                            if subkey not in config[key]:
+                                config[key][subkey] = default_config[key][subkey]
+                
+                print(f"✅ Loaded config.json (silence threshold: {config['audio']['silence_threshold']})")
+                return config
+        except FileNotFoundError:
+            print("⚠️ No config.json found, creating default config...")
+            with open("config.json", "w") as f:
+                json.dump(default_config, f, indent=2)
+            print("✅ Created config.json with default settings")
+            return default_config
+        except json.JSONDecodeError as e:
+            print(f"⚠️ Config file JSON error ({e}), using defaults")
+            return default_config
     
     def preprocess_audio(self, audio_data: bytes) -> np.ndarray:
         """Convert audio for Whisper"""
