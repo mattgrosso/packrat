@@ -3,6 +3,7 @@
 import os
 import time
 import threading
+import json
 from typing import Optional
 
 from continuous_detector import ContinuousDetector
@@ -33,11 +34,12 @@ class WorkshopAssistant:
         # Initialize components
         try:
             self.tts = WorkshopOpenAITTS(voice=voice, api_key=self.api_key)
-            self.command_parser = SmartCommandParser(api_key=self.api_key)
+            self.command_parser = SmartCommandParser(api_key=self.api_key, wake_word=wake_word)
             self.wake_detector = ContinuousDetector(
                 keyword=wake_word,
                 callback=self.on_command_received,
-                api_key=self.api_key
+                api_key=self.api_key,
+                interrupt_callback=self.handle_interrupt
             )
             
             print("✅ All components initialized successfully!")
@@ -69,7 +71,24 @@ class WorkshopAssistant:
             
             if response:
                 print(f"🤖 Response: '{response}'")
-                self.tts.speak(response)
+                
+                # Switch to interrupt detection mode during TTS
+                self.wake_detector.set_mode_interrupt()
+                
+                # Start TTS in non-blocking mode
+                self.tts.speak(response, blocking=False)
+                
+                # Wait for audio to actually start playing
+                print("⏳ Waiting for audio to start...")
+                while not self.tts.is_currently_speaking() and not self.tts.should_stop:
+                    time.sleep(0.05)  # Check every 50ms
+                
+                if self.tts.is_currently_speaking():
+                    print("🔊 Audio started, interrupt detection active")
+                    # Wait for TTS to actually finish while interrupt detection is active
+                    while self.tts.is_currently_speaking() and not self.tts.should_stop:
+                        time.sleep(0.1)  # Check every 100ms
+                
             else:
                 self.tts.respond("error")
                 
@@ -77,8 +96,15 @@ class WorkshopAssistant:
             print(f"❌ Error processing command: {e}")
             self.tts.respond("error")
         finally:
+            # Make sure to switch back to wake word detection mode
+            self.wake_detector.set_mode_wake_word()
             self.is_processing_command = False
-            print("✅ Command processing completed\n")
+    
+    def handle_interrupt(self):
+        """Handle interrupt command during TTS playback"""
+        print("🛑 Interrupt command received - stopping TTS")
+        self.tts.stop_speaking()
+        # Mode will be switched back to wake word in the finally block
     
     def start(self):
         """Start the workshop assistant"""
@@ -94,9 +120,9 @@ class WorkshopAssistant:
         print("🗣️  Say the wake word followed by your command in one go")
         print("⏹️  Press Ctrl+C to stop")
         print("\n📝 Example commands:")
-        print("  - 'Computer, store hammer in toolbox drawer three'")
-        print("  - 'Computer, where is the hammer?'")
-        print("  - 'Computer, list all tools'")
+        print(f"  - '{self.wake_word.title()}, store hammer in toolbox drawer three'")
+        print(f"  - '{self.wake_word.title()}, where is the hammer?'")
+        print(f"  - '{self.wake_word.title()}, list all tools'")
         print("-" * 40)
         
         try:
@@ -153,9 +179,31 @@ def main():
         print("  export OPENAI_API_KEY='your-api-key-here'")
         return
     
-    # Configuration
-    wake_word = "computer"  # Simple keyword detection
-    voice = "nova"          # OpenAI female voice
+    # Load configuration using the same pattern as continuous_detector
+    def deep_merge(base: dict, override: dict) -> dict:
+        """Deep merge override into base dictionary"""
+        result = base.copy()
+        for key, value in override.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = deep_merge(result[key], value)
+            else:
+                result[key] = value
+        return result
+    
+    # Load defaults first (always exists in repo)
+    with open("config.defaults.json", "r") as f:
+        config = json.load(f)
+    
+    # Apply local overrides
+    try:
+        with open("config.local.json", "r") as f:
+            local_config = json.load(f)
+            config = deep_merge(config, local_config)
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass  # No local config, use defaults
+    
+    wake_word = config["wake_word"]["keyword"]
+    voice = config["tts"]["voice"]
     
     try:
         # Create and start assistant

@@ -5,6 +5,7 @@ import os
 import threading
 import io
 import tempfile
+import time
 from typing import Optional
 from openai import OpenAI
 
@@ -25,6 +26,9 @@ class OpenAITTS:
         self.client = OpenAI(api_key=api_key)
         self.voice = voice
         self.is_speaking = False
+        self.should_stop = False
+        self.current_process = None
+        self.audio_command = None  # Track which audio command we're using
         
         # Available OpenAI voices
         self.available_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
@@ -38,6 +42,14 @@ class OpenAITTS:
     def list_voices(self) -> list:
         """List available OpenAI voices"""
         return self.available_voices
+    
+    def is_currently_speaking(self) -> bool:
+        """Check if TTS is currently playing audio"""
+        if not self.is_speaking:
+            return False
+        if not self.current_process:
+            return self.is_speaking  # Still generating/preparing audio
+        return self.current_process.poll() is None
     
     def speak(self, text: str, blocking: bool = True) -> bool:
         """
@@ -59,6 +71,8 @@ class OpenAITTS:
             if blocking:
                 self._speak_sync(text)
             else:
+                # Set is_speaking immediately for non-blocking mode
+                self.is_speaking = True
                 thread = threading.Thread(target=self._speak_sync, args=(text,))
                 thread.daemon = True
                 thread.start()
@@ -74,14 +88,30 @@ class OpenAITTS:
         """Synchronous speech using OpenAI TTS"""
         try:
             self.is_speaking = True
+            self.should_stop = False
+            
+            # Check if we should stop before generating
+            if self.should_stop:
+                return
             
             # Generate speech with OpenAI API
+            print("🕐 Starting OpenAI TTS generation...")
+            start_time = time.time()
+            
             response = self.client.audio.speech.create(
                 model="tts-1",  # or tts-1-hd for higher quality
                 voice=self.voice,
                 input=text,
                 response_format="mp3"
             )
+            
+            end_time = time.time()
+            duration = end_time - start_time
+            print(f"⏱️ TTS generation took {duration:.2f}s")
+            
+            # Check if we should stop before playing
+            if self.should_stop:
+                return
             
             # Save audio to temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
@@ -93,45 +123,77 @@ class OpenAITTS:
                 # Try different audio players based on platform
                 if os.name == 'posix':  # Unix/Linux/macOS
                     if subprocess.run(["which", "afplay"], capture_output=True).returncode == 0:
-                        subprocess.run(["afplay", temp_filename], check=True)
+                        self.audio_command = "afplay"
+                        self.current_process = subprocess.Popen(["afplay", temp_filename])
                     elif subprocess.run(["which", "mpg123"], capture_output=True).returncode == 0:
-                        subprocess.run(["mpg123", temp_filename], check=True)
+                        self.audio_command = "mpg123"
+                        self.current_process = subprocess.Popen(["mpg123", temp_filename])
                     elif subprocess.run(["which", "paplay"], capture_output=True).returncode == 0:
-                        subprocess.run(["paplay", temp_filename], check=True)
+                        self.audio_command = "paplay"
+                        self.current_process = subprocess.Popen(["paplay", temp_filename])
                     else:
                         raise FileNotFoundError("No audio player found (try: sudo apt install mpg123)")
                 else:  # Windows
-                    subprocess.run(["start", temp_filename], shell=True, check=True)
+                    self.audio_command = "start"
+                    self.current_process = subprocess.Popen(["start", temp_filename], shell=True)
+                
+                print(f"🔊 Playing audio with {self.audio_command} (PID: {self.current_process.pid})")
+                
+                # Wait for playback to complete or be interrupted
+                if self.current_process:
+                    self.current_process.wait()
+                    
             finally:
                 # Clean up temporary file
                 os.unlink(temp_filename)
+                self.current_process = None
             
         except Exception as e:
             print(f"❌ OpenAI TTS error: {e}")
-            # Fallback to say command
-            subprocess.run(["say", text], check=False)
+            # Fallback - but this shouldn't happen since we handle audio players above
+            if not self.should_stop:
+                print("⚠️ Unexpected fallback to system TTS")
         finally:
             self.is_speaking = False
+            self.current_process = None
+            self.audio_command = None
     
     def _fallback_speak(self, text: str, blocking: bool = True) -> bool:
         """Fallback to macOS say command"""
         try:
+            self.is_speaking = True
             print("🔄 Falling back to macOS say command")
             if blocking:
-                subprocess.run(["say", text], check=True)
+                self.current_process = subprocess.Popen(["say", text])
+                if self.current_process:
+                    self.current_process.wait()
+                    self.current_process = None
             else:
-                subprocess.Popen(["say", text])
+                self.current_process = subprocess.Popen(["say", text])
             return True
         except Exception as e:
             print(f"❌ Fallback TTS error: {e}")
             return False
+        finally:
+            if blocking:
+                self.is_speaking = False
     
     def stop_speaking(self):
         """Stop current speech"""
         try:
-            # Kill any running afplay or say processes
-            subprocess.run(["pkill", "afplay"], check=False)
-            subprocess.run(["pkill", "say"], check=False)
+            self.should_stop = True
+            
+            # Terminate current process if running
+            if self.current_process:
+                self.current_process.terminate()
+                try:
+                    self.current_process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    self.current_process.kill()
+                self.current_process = None
+            
+            # No need for pkill - we have the direct process handle!
+            
             self.is_speaking = False
             print("🛑 Stopped speaking")
         except Exception as e:

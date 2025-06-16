@@ -1,0 +1,22 @@
+{
+  "audio": {
+    "silence_threshold": 834,
+    "chunk_size": 1024,
+    "format": "paInt16",
+    "channels": 1,
+    "rate": 16000
+  },
+  "wake_word": {
+    "keyword": "computer",
+    "variants": ["computer", "compute", "comput"],
+    "model": "tiny",
+    "timeout": 30
+  },
+  "interrupt": {
+    "stop_words": ["stop", "computer stop", "quiet", "silence", "cancel"]
+  },
+  "tts": {
+    "voice": "alloy",
+    "model": "tts-1"
+  }
+}

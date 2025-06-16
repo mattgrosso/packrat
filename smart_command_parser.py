@@ -2,12 +2,13 @@
 
 import json
 import os
+import time
 from typing import Dict, List, Optional
 from openai import OpenAI
 from database import WorkshopDatabase
 
 class SmartCommandParser:
-    def __init__(self, api_key: str = None, db_path: str = "workshop.db"):
+    def __init__(self, api_key: str = None, db_path: str = "workshop.db", wake_word: str = None):
         """
         Smart command parser that gives full database context to GPT-4
         
@@ -22,6 +23,7 @@ class SmartCommandParser:
         
         self.client = OpenAI(api_key=api_key)
         self.db = WorkshopDatabase(db_path)
+        self.wake_word = wake_word or "computer"
         
         # Define available functions for the LLM
         self.functions = [
@@ -204,6 +206,8 @@ class SmartCommandParser:
             system_message = f"""
 You are a helpful workshop assistant. You help users store and find tools, hardware, and materials in their workshop.
 
+WAKE WORD: The user says "{self.wake_word}" to activate you, so ignore that word at the beginning of commands. For example, "{self.wake_word} store hammer in toolbox" means "store hammer in toolbox".
+
 Here is the COMPLETE current workshop inventory:
 
 {db_context}
@@ -224,8 +228,11 @@ Keep responses brief and natural since they will be spoken aloud.
 """
             
             # Call OpenAI API with function calling
+            print("🕐 Starting OpenAI LLM completion...")
+            start_time = time.time()
+            
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4.1",
                 messages=[
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": command_text}
@@ -233,6 +240,10 @@ Keep responses brief and natural since they will be spoken aloud.
                 tools=self.functions,
                 tool_choice="auto"
             )
+            
+            end_time = time.time()
+            duration = end_time - start_time
+            print(f"⏱️ LLM completion took {duration:.2f}s")
             
             message = response.choices[0].message
             
