@@ -39,7 +39,9 @@ def tune_silence_threshold():
         ambient_levels = []
 
         for i in range(100):  # 100 x 0.1s = 10 seconds
-            data = stream.read(int(RATE * 0.1), exception_on_overflow=False)  # 0.1 second chunks
+            data = stream.read(
+                int(RATE * 0.1), exception_on_overflow=False
+            )  # 0.1 second chunks
             audio_array = np.frombuffer(data, dtype=np.int16)
             rms = np.sqrt(np.mean(audio_array.astype(np.float64) ** 2))
             ambient_levels.append(rms)

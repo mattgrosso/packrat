@@ -14,6 +14,7 @@ A hands-free voice assistant for organizing workshop tools and hardware. Fully c
 - **smart_command_parser.py** - GPT-4.1 powered command parsing with full database context
 - **openai_tts.py** - Cross-platform OpenAI TTS with interrupt support
 - **database.py** - SQLite database for tool storage
+- **MEMORY.md** - Persistent user instructions and preferences (NEW!)
 - **config.defaults.json** - Default configuration (committed to repo)
 - **config.local.json** - Local configuration overrides (not committed)
 - **pyproject.toml** - Modern Python packaging with dependencies
@@ -45,16 +46,19 @@ CREATE TABLE tools (
 2. **Command Recording**: Records full command with automatic silence detection (1.5s timeout)
 3. **Live Transcription**: Shows real-time transcription of what it hears for transparency
 4. **Cloud Transcription**: Uses OpenAI Whisper API for accurate full command transcription
-5. **Smart Parsing**: GPT-4.1 with function calling processes commands with complete database context
-6. **Voice Response**: OpenAI TTS responds with confirmation/results
-7. **Interrupt Support**: Say "stop" to interrupt TTS responses
-8. **Mode Switching**: Seamlessly switches between wake word detection and interrupt detection
+5. **Smart Parsing**: GPT-4.1 with function calling processes commands with complete database context AND persistent memory
+6. **Memory Integration**: Persistent user instructions from MEMORY.md are included in every LLM prompt
+7. **Voice Response**: OpenAI TTS responds with confirmation/results
+8. **Interrupt Support**: Say "stop" to interrupt TTS responses
+9. **Mode Switching**: Seamlessly switches between wake word detection and interrupt detection
 
 ## Usage Examples
 - "[Wake word], store hammer in toolbox drawer three"
 - "[Wake word], where is the hammer?"
 - "[Wake word], what cutting tools do I have?"
 - "[Wake word], list all tools in the garage"
+- "[Wake word], remember I prefer brief responses" (NEW!)
+- "[Wake word], remember to mention safety with power tools" (NEW!)
 - "stop" / "quiet" / "cancel" (to interrupt responses)
 
 ## Dependencies
@@ -87,6 +91,7 @@ python start_assistant.py
 - **Total response time**: ~3-7 seconds end-to-end
 
 ## Major Features Added
+- **Persistent Memory System**: LLM can store and recall user preferences via MEMORY.md (NEW!)
 - **Configurable wake words**: Easy customization via config files
 - **Interrupt detection**: Unified thread handles wake word + stop commands
 - **Live transcription**: Real-time display of what's being heard
@@ -118,5 +123,10 @@ python start_assistant.py
 - **Performance monitoring**: Built-in timing for optimization
 - **Modern Python practices**: Type hints, proper packaging, clean imports
 
-Last Updated: 2025-06-14
+## Recent Updates ✨
+- **MEMORY.md System**: Added persistent memory feature allowing the assistant to learn and remember user preferences
+- **Line Length Freedom**: Removed line length restrictions from linting/formatting tools
+- **Claude Code Integration**: Added .claude/ entries to .gitignore for better Claude Code support
+
+Last Updated: 2025-06-15
 

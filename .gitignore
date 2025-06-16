@@ -160,3 +160,10 @@ cython_debug/
 
 # Local configuration files (machine-specific)
 config.local.json
+
+# Claude Code specific files
+.claude/settings.local.json
+.claude/cache/
+.claude/logs/
+.claude/local.*
+.claude/tmp/

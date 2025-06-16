@@ -121,22 +121,49 @@ class OpenAITTS:
             try:
                 # Try different audio players based on platform
                 if os.name == "posix":  # Unix/Linux/macOS
-                    if subprocess.run(["which", "afplay"], capture_output=True).returncode == 0:
+                    if (
+                        subprocess.run(
+                            ["which", "afplay"], capture_output=True
+                        ).returncode
+                        == 0
+                    ):
                         self.audio_command = "afplay"
-                        self.current_process = subprocess.Popen(["afplay", temp_filename])
-                    elif subprocess.run(["which", "mpg123"], capture_output=True).returncode == 0:
+                        self.current_process = subprocess.Popen(
+                            ["afplay", temp_filename]
+                        )
+                    elif (
+                        subprocess.run(
+                            ["which", "mpg123"], capture_output=True
+                        ).returncode
+                        == 0
+                    ):
                         self.audio_command = "mpg123"
-                        self.current_process = subprocess.Popen(["mpg123", temp_filename])
-                    elif subprocess.run(["which", "paplay"], capture_output=True).returncode == 0:
+                        self.current_process = subprocess.Popen(
+                            ["mpg123", temp_filename]
+                        )
+                    elif (
+                        subprocess.run(
+                            ["which", "paplay"], capture_output=True
+                        ).returncode
+                        == 0
+                    ):
                         self.audio_command = "paplay"
-                        self.current_process = subprocess.Popen(["paplay", temp_filename])
+                        self.current_process = subprocess.Popen(
+                            ["paplay", temp_filename]
+                        )
                     else:
-                        raise FileNotFoundError("No audio player found (try: sudo apt install mpg123)")
+                        raise FileNotFoundError(
+                            "No audio player found (try: sudo apt install mpg123)"
+                        )
                 else:  # Windows
                     self.audio_command = "start"
-                    self.current_process = subprocess.Popen(["start", temp_filename], shell=True)
+                    self.current_process = subprocess.Popen(
+                        ["start", temp_filename], shell=True
+                    )
 
-                print(f"🔊 Playing audio with {self.audio_command} (PID: {self.current_process.pid})")
+                print(
+                    f"🔊 Playing audio with {self.audio_command} (PID: {self.current_process.pid})"
+                )
 
                 # Wait for playback to complete or be interrupted
                 if self.current_process:
